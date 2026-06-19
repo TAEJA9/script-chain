@@ -1,0 +1,317 @@
+{
+  "universes": [
+    {
+      "id": "jeongnyon",
+      "title": "정년이 유니버스",
+      "tag": "#정년이 유니버스",
+      "graph": {
+        "nodes": [
+          {
+            "id": "jeongnyon-drama",
+            "name": "정년이",
+            "group": "content",
+            "val": 12,
+            "description": "1950년대 여성 국극단을 배경으로 한 성장 드라마",
+            "posterUrl": "/posters/jeongnyon.jpg",
+            "category": "드라마",
+            "copyText": "무대 위 별이 되기까지, 피와 땀으로 쓴 여자들의 이야기. 당신의 심장을 뒤흔들 국극의 세계가 열린다."
+          },
+          {
+            "id": "kimtaeri",
+            "name": "김태리 배우",
+            "group": "agent",
+            "val": 10,
+            "description": "정년이 역을 맡은 대한민국 대표 배우",
+            "posterUrl": "/posters/kimtaeri.jpg",
+            "category": "배우",
+            "copyText": "눈빛 하나로 시대를 담아내는 배우. 그녀가 무대에 서는 순간, 역사가 숨 쉰다."
+          },
+          {
+            "id": "national-theater",
+            "name": "여성 국극",
+            "group": "keyword",
+            "val": 6,
+            "description": "1940~60년대 여성만이 출연하는 한국 전통 공연 예술",
+            "category": "키워드",
+            "copyText": "사라져가던 예술이 다시 불꽃처럼 살아났다. 70년 만에 부활한 국극의 무대."
+          },
+          {
+            "id": "dopamine-growth",
+            "name": "도파민 폭발",
+            "group": "mood",
+            "val": 7,
+            "description": "극 중 주인공의 성장과 승리가 주는 쾌감",
+            "category": "감성/무드",
+            "copyText": "한 화 보고 나면 절대 못 끊는다. 엔딩에서 소름 돋는 그 순간을 위해 달리는 드라마."
+          },
+          {
+            "id": "growth-story",
+            "name": "피땀눈물 성장물",
+            "group": "mood",
+            "val": 7,
+            "description": "노력과 열정으로 정상을 향해 달려가는 이야기",
+            "category": "감성/무드",
+            "copyText": "넘어져도 다시 일어서는 그 집념이 당신의 가슴을 뜨겁게 만든다."
+          },
+          {
+            "id": "postwar-1950",
+            "name": "1950년대 한국전쟁 직후",
+            "group": "index",
+            "val": 8,
+            "description": "전쟁 이후 혼란과 재건의 시대, 예술이 꽃핀 역설의 시간",
+            "category": "역사적 배경",
+            "copyText": "폐허 위에서도 노래는 멈추지 않았다. 가장 어두운 시절에 빛난 예술의 역사."
+          },
+          {
+            "id": "webtoon-fans",
+            "name": "이 드라마 본 덕후들이 같이 밤샘",
+            "group": "pattern",
+            "val": 6,
+            "description": "원작 웹툰 팬덤과 드라마 팬덤이 겹치는 소비 패턴",
+            "category": "소비 패턴",
+            "copyText": "밤 12시에 혼자 정주행하다 새벽 6시에 눈물 흘리는 사람들이 모였다."
+          },
+          {
+            "id": "suho",
+            "name": "수호 배우",
+            "group": "agent",
+            "val": 10,
+            "description": "정년이 남자 주인공 역을 맡은 배우",
+            "posterUrl": "/posters/suho.jpg",
+            "category": "배우",
+            "copyText": "차가운 듯 따뜻한 그 눈빛. 무대 위 그와의 케미는 팬덤을 미치게 한다."
+          },
+          {
+            "id": "webtoon-origin",
+            "name": "나몬 웹툰 원작",
+            "group": "keyword",
+            "val": 6,
+            "description": "정년이의 원작 웹툰 작가 나몬의 작품",
+            "category": "키워드",
+            "copyText": "만화로 먼저 울었던 사람들이 드라마에서 또 운다."
+          }
+        ],
+        "links": [
+          { "source": "kimtaeri", "target": "jeongnyon-drama", "label": "주연 출연" },
+          { "source": "suho", "target": "jeongnyon-drama", "label": "주연 출연" },
+          { "source": "national-theater", "target": "jeongnyon-drama", "label": "의 핵심 소재" },
+          { "source": "dopamine-growth", "target": "jeongnyon-drama", "label": "의 감성 코드" },
+          { "source": "growth-story", "target": "jeongnyon-drama", "label": "의 감성 코드" },
+          { "source": "postwar-1950", "target": "jeongnyon-drama", "label": "의 역사적 배경" },
+          { "source": "webtoon-fans", "target": "jeongnyon-drama", "label": "의 주요 팬층" },
+          { "source": "webtoon-origin", "target": "jeongnyon-drama", "label": "의 원작" },
+          { "source": "kimtaeri", "target": "national-theater", "label": "를 몸소 수련" },
+          { "source": "postwar-1950", "target": "national-theater", "label": "에 번성한" }
+        ]
+      }
+    },
+    {
+      "id": "pachinko",
+      "title": "파친코 유니버스",
+      "tag": "#파친코 유니버스",
+      "graph": {
+        "nodes": [
+          {
+            "id": "pachinko-series",
+            "name": "파친코",
+            "group": "content",
+            "val": 12,
+            "description": "재일조선인 4세대에 걸친 가족 대서사시",
+            "posterUrl": "/posters/pachinko.jpg",
+            "category": "드라마/소설",
+            "copyText": "살아남는 것이 곧 저항이었다. 4세대에 걸친 한국인의 눈물과 희망, 당신의 뿌리를 돌아보게 할 이야기."
+          },
+          {
+            "id": "minjin-lee",
+            "name": "이민진 작가",
+            "group": "agent",
+            "val": 10,
+            "description": "파친코 원작 소설의 저자, 재미교포 소설가",
+            "category": "작가",
+            "copyText": "30년의 취재와 집필로 완성된 역작. 한 작가의 집념이 세계 문학사를 바꿨다."
+          },
+          {
+            "id": "youn-yuh-jung",
+            "name": "윤여정 배우",
+            "group": "agent",
+            "val": 10,
+            "description": "파친코에서 노년의 선자 역을 맡은 아카데미 수상 배우",
+            "posterUrl": "/posters/yoonyj.jpg",
+            "category": "배우",
+            "copyText": "오스카 수상 후 더 빛나는 연기. 그녀가 흘리는 눈물 한 방울에 백 년의 역사가 담겼다."
+          },
+          {
+            "id": "zainichi",
+            "name": "재일조선인",
+            "group": "keyword",
+            "val": 6,
+            "description": "일본에 거주하는 한국계 사람들의 역사와 정체성",
+            "category": "키워드",
+            "copyText": "조선인도 일본인도 아닌 그들. 경계에서 살아온 사람들의 이야기가 마침내 세계로."
+          },
+          {
+            "id": "quiet-grief",
+            "name": "가슴 먹먹한 슬픔",
+            "group": "mood",
+            "val": 7,
+            "description": "소리 없이 울게 만드는 깊고 조용한 감동",
+            "category": "감성/무드",
+            "copyText": "눈물이 나는데 왜 눈물인지 모르겠다. 마음 깊은 곳을 건드리는 파친코의 감동."
+          },
+          {
+            "id": "diaspora-identity",
+            "name": "디아스포라와 정체성",
+            "group": "mood",
+            "val": 7,
+            "description": "고향을 떠나 타국에서 살아가며 겪는 정체성의 혼란과 회복",
+            "category": "감성/무드",
+            "copyText": "나는 누구인가. 어디에서 왔는가. 모든 이방인의 질문이 이 이야기에 담겼다."
+          },
+          {
+            "id": "colonial-era",
+            "name": "일제강점기 1910~1945",
+            "group": "index",
+            "val": 8,
+            "description": "일본 제국주의 통치 하의 한반도, 강제 이주와 수탈의 시대",
+            "category": "역사적 배경",
+            "copyText": "역사는 기억하는 자의 것이다. 잊혀진 이름들을 다시 부르는 시간."
+          },
+          {
+            "id": "binge-cry",
+            "name": "밤새 울며 정주행하는 사람들",
+            "group": "pattern",
+            "val": 6,
+            "description": "감동적인 서사에 몰입해 연속 시청하는 시청 패턴",
+            "category": "소비 패턴",
+            "copyText": "1화 보고 '그냥 한 편만 더...'라고 말한 게 새벽 4시였다는 후기들."
+          },
+          {
+            "id": "apple-tv",
+            "name": "애플TV+ 오리지널",
+            "group": "keyword",
+            "val": 6,
+            "description": "글로벌 스트리밍 플랫폼 애플TV+의 한국 서사 투자작",
+            "category": "키워드",
+            "copyText": "K-콘텐츠의 진화. 글로벌 자본이 주목한 한국의 이야기."
+          }
+        ],
+        "links": [
+          { "source": "minjin-lee", "target": "pachinko-series", "label": "의 원작 작가" },
+          { "source": "youn-yuh-jung", "target": "pachinko-series", "label": "주연 출연" },
+          { "source": "zainichi", "target": "pachinko-series", "label": "의 핵심 주제" },
+          { "source": "quiet-grief", "target": "pachinko-series", "label": "의 감성 코드" },
+          { "source": "diaspora-identity", "target": "pachinko-series", "label": "의 핵심 주제" },
+          { "source": "colonial-era", "target": "pachinko-series", "label": "의 역사적 배경" },
+          { "source": "binge-cry", "target": "pachinko-series", "label": "의 주요 시청 패턴" },
+          { "source": "apple-tv", "target": "pachinko-series", "label": "에서 제작" },
+          { "source": "colonial-era", "target": "zainichi", "label": "가 만들어낸" },
+          { "source": "minjin-lee", "target": "zainichi", "label": "의 정체성을 가진" }
+        ]
+      }
+    },
+    {
+      "id": "reborn-chaebol",
+      "title": "재벌집 막내아들 유니버스",
+      "tag": "#재벌집 막내아들",
+      "graph": {
+        "nodes": [
+          {
+            "id": "reborn-drama",
+            "name": "재벌집 막내아들",
+            "group": "content",
+            "val": 12,
+            "description": "재벌가에서 회귀한 주인공의 복수와 성공 이야기",
+            "posterUrl": "/posters/reborn.jpg",
+            "category": "드라마",
+            "copyText": "기억은 가져가도 신분은 바꿔서 왔다. 재벌 막내로 회귀한 그의 완벽한 복수극이 시작된다."
+          },
+          {
+            "id": "song-joongki",
+            "name": "송중기 배우",
+            "group": "agent",
+            "val": 10,
+            "description": "재벌집 막내아들의 주인공 윤현우 역을 맡은 배우",
+            "posterUrl": "/posters/sjk.jpg",
+            "category": "배우",
+            "copyText": "빈틈없는 카리스마와 짜릿한 반전. 송중기가 돌아왔다."
+          },
+          {
+            "id": "lee-sungmin",
+            "name": "이성민 배우",
+            "group": "agent",
+            "val": 10,
+            "description": "재벌 오너 순양 회장 역을 맡은 베테랑 배우",
+            "category": "배우",
+            "copyText": "무게감 있는 존재감. 그가 등장하면 화면이 긴장된다."
+          },
+          {
+            "id": "reincarnation",
+            "name": "회귀/환생물",
+            "group": "keyword",
+            "val": 6,
+            "description": "이전 삶의 기억을 가지고 과거로 돌아가는 장르 클리셰",
+            "category": "키워드",
+            "copyText": "기억을 갖고 다시 태어난다면? 한국 웹소설이 만들어낸 신 장르의 정석."
+          },
+          {
+            "id": "chaebol-culture",
+            "name": "재벌 문화 해부",
+            "group": "keyword",
+            "val": 6,
+            "description": "한국 재벌 기업의 권력 구조와 문화를 들여다보는 시각",
+            "category": "키워드",
+            "copyText": "뉴스에서만 보던 그 세계. 드라마로 배우는 한국 재벌의 민낯."
+          },
+          {
+            "id": "revenge-catharsis",
+            "name": "복수쾌감 카타르시스",
+            "group": "mood",
+            "val": 7,
+            "description": "악인이 응징받는 순간 느끼는 극도의 해방감",
+            "category": "감성/무드",
+            "copyText": "뚝배기 깨지는 순간만을 기다리는 쾌감. 이 드라마의 가장 큰 중독 포인트."
+          },
+          {
+            "id": "1990s-korea",
+            "name": "1990년대 한국 경제",
+            "group": "index",
+            "val": 8,
+            "description": "IMF 외환위기 전후, 고도성장과 버블 붕괴의 시대",
+            "category": "역사적 배경",
+            "copyText": "우리 부모님이 살았던 그 시절. 드라마가 보여주는 90년대 한국의 야망과 추락."
+          },
+          {
+            "id": "webnovel-origin",
+            "name": "웹소설 원작 팬덤",
+            "group": "pattern",
+            "val": 6,
+            "description": "원작 웹소설을 먼저 소비하고 드라마로 넘어온 팬들의 패턴",
+            "category": "소비 패턴",
+            "copyText": "원작 독자들이 드라마를 보며 '이 장면!'을 외치는 순간을 위한 드라마."
+          },
+          {
+            "id": "power-dynamics",
+            "name": "권력과 야망의 세계",
+            "group": "mood",
+            "val": 7,
+            "description": "돈과 권력을 둘러싼 냉혹한 인간 군상의 이야기",
+            "category": "감성/무드",
+            "copyText": "약자는 죽고 강자가 살아남는 그 세계. 눈을 뗄 수 없는 권력의 게임."
+          }
+        ],
+        "links": [
+          { "source": "song-joongki", "target": "reborn-drama", "label": "주연 출연" },
+          { "source": "lee-sungmin", "target": "reborn-drama", "label": "주연 출연" },
+          { "source": "reincarnation", "target": "reborn-drama", "label": "의 핵심 장르" },
+          { "source": "chaebol-culture", "target": "reborn-drama", "label": "를 배경으로" },
+          { "source": "revenge-catharsis", "target": "reborn-drama", "label": "의 감성 코드" },
+          { "source": "1990s-korea", "target": "reborn-drama", "label": "의 역사적 배경" },
+          { "source": "webnovel-origin", "target": "reborn-drama", "label": "의 주요 팬층" },
+          { "source": "power-dynamics", "target": "reborn-drama", "label": "의 핵심 테마" },
+          { "source": "1990s-korea", "target": "chaebol-culture", "label": "가 만들어낸" },
+          { "source": "reincarnation", "target": "webnovel-origin", "label": "을 즐기는" }
+        ]
+      }
+    }
+  ]
+}
