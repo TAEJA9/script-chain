@@ -52,9 +52,11 @@ export default function SemanticGraph({ graphData, onNodeClick }: SemanticGraphP
     const t = setTimeout(() => {
       if (!graphRef.current) return;
       const charge = graphRef.current.d3Force('charge');
-      if (charge) charge.strength(-500);
+      if (charge) charge.strength(-1200);
       const link = graphRef.current.d3Force('link');
-      if (link) link.distance(140);
+      if (link) link.distance(200).strength(0.3);
+      const collision = graphRef.current.d3Force('collision');
+      if (collision) collision.radius(50);
       graphRef.current.d3ReheatSimulation();
     }, 150);
     return () => clearTimeout(t);
@@ -196,10 +198,10 @@ export default function SemanticGraph({ graphData, onNodeClick }: SemanticGraphP
         linkDirectionalParticles={2}
         linkDirectionalParticleWidth={1.5}
         linkDirectionalParticleColor={() => 'rgba(148,163,184,0.6)'}
-        d3AlphaDecay={0.015}
-        d3VelocityDecay={0.25}
-        cooldownTime={4000}
-        warmupTicks={60}
+        d3AlphaDecay={0.04}
+        d3VelocityDecay={0.5}
+        cooldownTime={3000}
+        warmupTicks={80}
         enableNodeDrag
         enableZoomInteraction
         minZoom={0.2}
