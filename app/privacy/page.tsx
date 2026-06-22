@@ -104,7 +104,7 @@ export default function PrivacyPage() {
               개인정보 관련 문의 사항은 아래 이메일로 연락 주시기 바랍니다.
             </p>
             <div className="mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 text-sm">
-              <p><strong>이메일:</strong> ybm.ailab@gmail.com</p>
+              <p><strong>이메일:</strong> sfedu2019@gmail.com</p>
               <p className="mt-0.5"><strong>서비스명:</strong> 스크립트 체인 (Script Chain)</p>
             </div>
           </section>
