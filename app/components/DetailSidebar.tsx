@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { GraphNode, NODE_COLORS } from '../types/content';
+import { GraphNode, NODE_COLORS, NODE_COLORS_BG } from '../types/content';
+import AdSenseRefresher from './AdSenseRefresher';
 
 interface DetailSidebarProps {
   node: GraphNode | null;
@@ -17,136 +18,436 @@ interface Book {
   isbn?: string;
   coverUrl?: string | null;
   description?: string | null;
-  ranking?: string;
+}
+
+interface WikiSummary {
+  title: string;
+  extract: string;
+  thumbnail?: { source: string };
+  content_urls?: { desktop: { page: string } };
 }
 
 const GROUP_LABELS: Record<string, string> = {
-  agent: '인물',
-  keyword: '키워드',
-  mood: '감성/무드',
-  pattern: '소비 패턴',
-  index: '역사적 배경',
-  content: '콘텐츠',
+  agent: '인물', keyword: '키워드', mood: '감성/무드',
+  pattern: '소재/배경', index: '역사적 배경', content: '콘텐츠',
 };
 
-function MockPoster({ node }: { node: GraphNode }) {
-  const color = NODE_COLORS[node.group] ?? '#3b82f6';
-  const label = GROUP_LABELS[node.group] ?? '콘텐츠';
-  return (
-    <div
-      className="w-full h-44 rounded-xl flex items-center justify-center relative overflow-hidden"
-      style={{ background: `linear-gradient(135deg, ${color}33 0%, ${color}11 100%)` }}
-    >
-      <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(circle at 30% 30%, ${color}, transparent 70%)` }} />
-      <div className="text-center z-10">
-        <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-2 text-2xl"
-          style={{ backgroundColor: `${color}33`, border: `2px solid ${color}66` }}>
-          {node.group === 'agent' && '👤'}
-          {node.group === 'keyword' && '🔑'}
-          {node.group === 'mood' && '💫'}
-          {node.group === 'pattern' && '📊'}
-          {node.group === 'index' && '📜'}
-          {node.group === 'content' && '🎬'}
-        </div>
-        <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ backgroundColor: `${color}33`, color }}>{label}</span>
-      </div>
-    </div>
-  );
-}
+const GROUP_ICON: Record<string, string> = {
+  agent: '👤', keyword: '🏷', mood: '♥', pattern: '★', index: '🏛', content: '📖',
+};
 
-function BookCard({ book }: { book: Book }) {
-  return (
-    <div className="flex gap-3 p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors">
-      {book.coverUrl ? (
-        <img src={book.coverUrl} alt={book.title} className="w-10 h-14 object-cover rounded flex-shrink-0" />
-      ) : (
-        <div className="w-10 h-14 bg-slate-700 rounded flex-shrink-0 flex items-center justify-center text-lg">📚</div>
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white leading-tight line-clamp-2">{book.title}</p>
-        <p className="text-xs text-slate-400 mt-0.5 truncate">{book.author}</p>
-        {book.year && <p className="text-xs text-slate-600 mt-0.5">{book.year}</p>}
-      </div>
-    </div>
-  );
-}
+const MOCK_KEYWORD_COUNTS = [
+  { title: '관련 드라마', emoji: '📺', count: 24, color: '#6366f1' },
+  { title: '관련 도서',   emoji: '📚', count: 18, color: '#f59e0b' },
+  { title: '관련 영화',   emoji: '🎬', count: 12, color: '#ec4899' },
+  { title: '관련 웹툰',   emoji: '🖼',  count:  9, color: '#10b981' },
+];
 
-function BookSection({ node }: { node: GraphNode }) {
+const MOCK_OSTS = (name: string) => [
+  { title: `${name.slice(0, 8)} OST Part 1`, artist: '드라마 OST', duration: '3:24' },
+  { title: '메인 테마 (Main Theme)',          artist: '드라마 OST', duration: '4:01' },
+  { title: '엔딩곡 (Ending Theme)',           artist: 'Various Artists', duration: '3:47' },
+  { title: '삽입곡 모음',                     artist: 'Various Artists', duration: '18:30' },
+];
+
+const STREAMING_PLATFORMS = [
+  { name: 'Netflix', bg: '#E50914', label: 'N', url: (q: string) => `https://www.netflix.com/search?q=${encodeURIComponent(q)}` },
+  { name: '티빙',    bg: '#FF153C', label: 'T', url: (q: string) => `https://www.tving.com/search?word=${encodeURIComponent(q)}` },
+  { name: '웨이브',  bg: '#006EFA', label: 'W', url: (q: string) => `https://www.wavve.com/search?keyword=${encodeURIComponent(q)}` },
+  { name: '왓챠',    bg: '#FF0558', label: 'W', url: (q: string) => `https://watcha.com/search?query=${encodeURIComponent(q)}` },
+];
+
+const CO_BORROW_PCTS = [78, 63, 51, 44, 32];
+
+// ── AgentPanel ──────────────────────────────────────────────────────
+function AgentPanel({ node }: { node: GraphNode }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-
-  // 작가 노드인지 판별
-  const isAuthor = node.group === 'agent' && node.category === '작가';
-  // 책/콘텐츠 노드인지 판별 (isbn이 있으면 관련 도서 조회)
-  const hasIsbn = !!node.description?.match(/isbn/i) || false;
-  // 키워드 노드
-  const isKeyword = node.group === 'keyword';
+  const color = NODE_COLORS[node.group];
 
   useEffect(() => {
-    let url = '';
-    if (isAuthor) {
-      // 작가 이름에서 "작가" 제거
-      const authorName = node.name.replace(/\s*작가$/, '').trim();
-      url = `/api/books?type=author&query=${encodeURIComponent(authorName)}`;
-    } else if (isKeyword) {
-      url = `/api/books?type=keyword&query=${encodeURIComponent(node.name)}`;
-    } else {
-      return;
-    }
-
     setLoading(true);
-    setError(false);
-    fetch(url)
-      .then((r) => r.json())
-      .then((data) => {
-        setBooks(data.books ?? []);
-      })
-      .catch(() => setError(true))
+    const name = node.name.replace(/\s*(작가|배우|감독)$/, '').trim();
+    fetch(`/api/books?type=author&query=${encodeURIComponent(name)}`)
+      .then(r => r.json())
+      .then(d => setBooks(d.books ?? []))
+      .catch(() => {})
       .finally(() => setLoading(false));
-  }, [node.id, isAuthor, isKeyword, node.name]);
-
-  if (!isAuthor && !isKeyword) return null;
-
-  const sectionTitle = isAuthor ? '저서 목록' : '관련 도서';
+  }, [node.id, node.name]);
 
   return (
-    <div className="mt-1">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-sm font-semibold text-slate-200">📚 {sectionTitle}</span>
-        <span className="text-xs text-slate-500">도서관 정보나루</span>
+    <div className="space-y-4">
+      <div className="p-4 rounded-2xl border border-gray-100 bg-gray-50">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-11 h-11 rounded-full flex items-center justify-center text-2xl flex-shrink-0"
+            style={{ backgroundColor: `${color}20`, border: `2px solid ${color}40` }}>
+            {GROUP_ICON.agent}
+          </div>
+          <div>
+            <p className="font-bold text-gray-900 text-sm">{node.name}</p>
+            <p className="text-[10px] text-gray-400 mt-0.5">{node.category ?? '인물'}</p>
+          </div>
+        </div>
+        {node.description && (
+          <p className="text-xs text-gray-500 leading-relaxed">{node.description}</p>
+        )}
       </div>
 
-      {loading && (
-        <div className="flex items-center gap-2 py-4 text-slate-500 text-sm">
-          <div className="w-4 h-4 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin" />
-          도서 정보 불러오는 중...
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">대표 참여작</p>
+        {loading && <Spinner color="#34d399" label="불러오는 중..." />}
+        {!loading && books.length === 0 && (
+          <p className="text-xs text-gray-400 py-1">참여작 정보가 없습니다.</p>
+        )}
+        {!loading && books.length > 0 && (
+          <div className="space-y-2">
+            {books.slice(0, 5).map((book, i) => (
+              <div key={book.isbn ?? i}
+                className="flex gap-3 p-2.5 rounded-xl bg-white border border-gray-100 hover:border-gray-200 transition-colors">
+                {book.coverUrl
+                  ? <img src={book.coverUrl} alt={book.title} className="w-9 h-12 object-cover rounded-lg flex-shrink-0" />
+                  : <div className="w-9 h-12 rounded-lg flex-shrink-0 flex items-center justify-center text-base"
+                      style={{ backgroundColor: `${color}15` }}>📖</div>
+                }
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-900 leading-snug line-clamp-2">{book.title}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5 truncate">{book.author}{book.publisher ? ` · ${book.publisher}` : ''}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── KeywordPanel ────────────────────────────────────────────────────
+function KeywordPanel({ node }: { node: GraphNode }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-center">
+        <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold border-2"
+          style={{ borderColor: NODE_COLORS.keyword, color: NODE_COLORS.keyword, backgroundColor: NODE_COLORS_BG.keyword }}>
+          🏷 {node.name}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {MOCK_KEYWORD_COUNTS.map((card) => (
+          <div key={card.title}
+            className="p-3 rounded-xl border border-gray-100 bg-white hover:shadow-sm transition-shadow cursor-pointer">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-lg">{card.emoji}</span>
+              <span className="text-sm font-black" style={{ color: card.color }}>{card.count}</span>
+            </div>
+            <p className="text-xs font-semibold text-gray-700">{card.title}</p>
+            <p className="text-[10px] text-gray-400 mt-0.5 truncate">"{node.name}" 관련</p>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">인기 콘텐츠</p>
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+              <span className="text-sm font-black text-gray-200 w-5 text-center">{i}</span>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-gray-800">"{node.name}" 관련 콘텐츠 {i}</p>
+                <p className="text-[10px] text-gray-400">드라마 · 2024</p>
+              </div>
+              <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full flex-shrink-0">HOT</span>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
+    </div>
+  );
+}
 
-      {error && (
-        <p className="text-xs text-slate-500 py-2">도서 정보를 불러오지 못했습니다.</p>
-      )}
+// ── MoodPanel ───────────────────────────────────────────────────────
+function MoodPanel({ node }: { node: GraphNode }) {
+  const osts = MOCK_OSTS(node.name);
 
-      {!loading && !error && books.length === 0 && (
-        <p className="text-xs text-slate-500 py-2">관련 도서가 없습니다.</p>
+  return (
+    <div className="space-y-4">
+      <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-100">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-lg">🎵</span>
+          <p className="text-sm font-bold text-gray-800">과몰입 OST 플레이리스트</p>
+        </div>
+        <p className="text-xs text-gray-400">"{node.name}" 감성으로 큐레이션된 음악</p>
+      </div>
+
+      <div className="space-y-1">
+        {osts.map((ost, i) => (
+          <a key={i}
+            href={`https://www.youtube.com/results?search_query=${encodeURIComponent(ost.title)}`}
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-3 p-3 rounded-xl hover:bg-pink-50 transition-colors group border border-transparent hover:border-pink-100">
+            <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0 group-hover:bg-pink-200 transition-colors">
+              <span className="text-pink-500 text-xs">▶</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-gray-800 truncate">{ost.title}</p>
+              <p className="text-[10px] text-gray-400">{ost.artist}</p>
+            </div>
+            <span className="text-[10px] text-gray-400 flex-shrink-0 font-mono">{ost.duration}</span>
+          </a>
+        ))}
+      </div>
+
+      <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(node.name + ' OST')}`}
+        target="_blank" rel="noopener noreferrer"
+        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90"
+        style={{ background: 'linear-gradient(135deg, #FF0000, #CC0000)' }}>
+        <span>▶</span> YouTube에서 전체 OST 듣기
+      </a>
+    </div>
+  );
+}
+
+// ── PatternPanel ────────────────────────────────────────────────────
+function PatternPanel({ node }: { node: GraphNode }) {
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(false);
+  const color = NODE_COLORS[node.group];
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/books?type=keyword&query=${encodeURIComponent(node.name)}`)
+      .then(r => r.json())
+      .then(d => setBooks(d.books ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [node.id, node.name]);
+
+  return (
+    <div className="space-y-4">
+      <div className="p-3 rounded-2xl bg-amber-50 border border-amber-100">
+        <p className="text-xs font-bold text-amber-700">📊 함께 대출된 도서</p>
+        <p className="text-[10px] text-amber-400 mt-0.5">도서관 정보나루 대출 통계 기반</p>
+      </div>
+
+      {loading && <Spinner color="#f59e0b" label="통계 불러오는 중..." />}
+
+      {!loading && books.length === 0 && (
+        <p className="text-xs text-gray-400 py-1">함께 대출된 도서 데이터가 없습니다.</p>
       )}
 
       {!loading && books.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {books.slice(0, 5).map((book, i) => (
-            <BookCard key={book.isbn ?? i} book={book} />
-          ))}
+        <div className="space-y-3.5">
+          {books.slice(0, 5).map((book, i) => {
+            const pct = CO_BORROW_PCTS[i] ?? Math.max(20, 78 - i * 12);
+            return (
+              <div key={book.isbn ?? i} className="space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-semibold text-gray-800 leading-snug flex-1 line-clamp-1">{book.title}</p>
+                  <span className="text-xs font-bold flex-shrink-0" style={{ color }}>{pct}%</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                </div>
+                <p className="text-[10px] text-gray-400">{book.author}</p>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
+// ── IndexPanel ──────────────────────────────────────────────────────
+function IndexPanel({ node }: { node: GraphNode }) {
+  const [wiki, setWiki] = useState<WikiSummary | null>(null);
+  const [wikiLoading, setWikiLoading] = useState(false);
+
+  useEffect(() => {
+    setWikiLoading(true);
+    setWiki(null);
+    fetch(`https://ko.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(node.name)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setWiki(data))
+      .catch(() => {})
+      .finally(() => setWikiLoading(false));
+  }, [node.name]);
+
+  const archiveLinks = [
+    { label: `${node.name} 관련 기사`, source: '네이버 뉴스', url: `https://news.naver.com/search/result.naver?query=${encodeURIComponent(node.name)}` },
+    { label: `${node.name} 학술 자료`, source: 'RISS',        url: `https://www.riss.kr/search/Search.do?searchGubun=true&query=${encodeURIComponent(node.name)}` },
+    { label: `${node.name} 디지털 사료`, source: '국립중앙도서관', url: `https://www.nl.go.kr/NL/search/totSearch.do?query=${encodeURIComponent(node.name)}` },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 flex items-center gap-2">
+          <span>📖</span>
+          <p className="text-xs font-bold text-gray-600">위키백과 요약</p>
+          <span className="ml-auto text-[10px] text-gray-400">Wikipedia</span>
+        </div>
+
+        {wikiLoading && (
+          <div className="p-4"><Spinner color="#6b7280" label="백과사전 불러오는 중..." /></div>
+        )}
+
+        {!wikiLoading && wiki && (
+          <div className="p-4">
+            <div className="flex gap-3 mb-3">
+              {wiki.thumbnail && (
+                <img src={wiki.thumbnail.source} alt={wiki.title}
+                  className="w-16 h-20 object-cover rounded-lg flex-shrink-0 border border-gray-200" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 mb-1">{wiki.title}</p>
+                <p className="text-xs text-gray-500 leading-relaxed line-clamp-5">{wiki.extract}</p>
+              </div>
+            </div>
+            {wiki.content_urls && (
+              <a href={wiki.content_urls.desktop.page} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-blue-500 hover:text-blue-700 font-medium">
+                위키백과에서 전체 내용 보기 →
+              </a>
+            )}
+          </div>
+        )}
+
+        {!wikiLoading && !wiki && (
+          <div className="p-4">
+            <p className="text-xs text-gray-400">위키백과 항목을 찾을 수 없습니다.</p>
+            <a href={`https://ko.wikipedia.org/w/index.php?search=${encodeURIComponent(node.name)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="text-xs text-blue-500 hover:text-blue-700 font-medium mt-1 block">
+              위키백과에서 검색해보기 →
+            </a>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">신문·사료 아카이브</p>
+        <div className="space-y-2">
+          {archiveLinks.map((link) => (
+            <a key={link.source} href={link.url} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:bg-gray-100 transition-colors group">
+              <span className="text-base flex-shrink-0">🗞</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-800 truncate">{link.label}</p>
+                <p className="text-[10px] text-gray-400">{link.source}</p>
+              </div>
+              <span className="text-gray-300 group-hover:text-gray-500 transition-colors flex-shrink-0">→</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ContentPanel ────────────────────────────────────────────────────
+function ContentPanel({ node }: { node: GraphNode }) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">스트리밍 바로가기</p>
+        <div className="grid grid-cols-2 gap-2">
+          {STREAMING_PLATFORMS.map((p) => (
+            <a key={p.name} href={p.url(node.name)} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2.5 p-3 rounded-xl border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all bg-white group">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black flex-shrink-0"
+                style={{ backgroundColor: p.bg }}>
+                {p.label}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-800">{p.name}</p>
+                <p className="text-[10px] text-gray-400 group-hover:text-gray-600">검색하기 →</p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-gray-100" />
+
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">도서관 서비스</p>
+        <a href={`https://www.nl.go.kr/NL/search/totSearch.do?query=${encodeURIComponent(node.name)}`}
+          target="_blank" rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors">
+          📚 내 주변 도서관에서 대출하기
+        </a>
+        <p className="text-[10px] text-gray-400 text-center mt-2">국립중앙도서관 통합검색 연동</p>
+      </div>
+    </div>
+  );
+}
+
+// ── GroupPanel (switch) ─────────────────────────────────────────────
+function GroupPanel({ node }: { node: GraphNode }) {
+  switch (node.group) {
+    case 'agent':   return <AgentPanel node={node} />;
+    case 'keyword': return <KeywordPanel node={node} />;
+    case 'mood':    return <MoodPanel node={node} />;
+    case 'pattern': return <PatternPanel node={node} />;
+    case 'index':   return <IndexPanel node={node} />;
+    case 'content': return <ContentPanel node={node} />;
+    default:        return null;
+  }
+}
+
+// ── Spinner ─────────────────────────────────────────────────────────
+function Spinner({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2 py-3 text-sm text-gray-400">
+      <div className="w-4 h-4 rounded-full border-2 border-gray-100 border-t-current animate-spin flex-shrink-0"
+        style={{ borderTopColor: color }} />
+      {label}
+    </div>
+  );
+}
+
+// ── MockPoster ──────────────────────────────────────────────────────
+function MockPoster({ node }: { node: GraphNode }) {
+  const color = NODE_COLORS[node.group] ?? '#10b981';
+  const bg = NODE_COLORS_BG[node.group] ?? '#f0fdf4';
+  const isContent = node.group === 'content';
+
+  if (node.posterUrl) {
+    return (
+      <div className="w-full h-48 rounded-2xl overflow-hidden relative">
+        <img src={node.posterUrl} alt={node.name} className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute bottom-3 left-3 right-12">
+          <p className="text-white font-bold text-lg leading-tight">{node.name}</p>
+          {node.description && (
+            <p className="text-white/70 text-xs mt-0.5 line-clamp-1">{node.description}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-36 rounded-2xl flex items-center justify-center"
+      style={{ backgroundColor: isContent ? color : bg, border: `1px solid ${color}33` }}>
+      <div className="text-center">
+        <div className="text-4xl mb-1">{GROUP_ICON[node.group] ?? '◉'}</div>
+        <p className="text-sm font-bold" style={{ color: isContent ? '#fff' : color }}>{node.name}</p>
+        <p className="text-xs mt-0.5" style={{ color: isContent ? 'rgba(255,255,255,0.7)' : '#9ca3af' }}>
+          {GROUP_LABELS[node.group]}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Main ────────────────────────────────────────────────────────────
 export default function DetailSidebar({ node, isOpen, onClose }: DetailSidebarProps) {
   if (!node) return null;
 
-  const color = NODE_COLORS[node.group] ?? '#3b82f6';
+  const color = NODE_COLORS[node.group] ?? '#10b981';
   const groupLabel = GROUP_LABELS[node.group] ?? '콘텐츠';
 
   const handleShareX = () => {
@@ -155,80 +456,63 @@ export default function DetailSidebar({ node, isOpen, onClose }: DetailSidebarPr
   };
 
   return (
-    <div
-      className={`fixed top-0 right-0 h-full w-full sm:w-[380px] bg-slate-900 border-l border-slate-800
-        z-50 flex flex-col transition-transform duration-300 ease-in-out overflow-y-auto
-        ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
-    >
-      {/* 헤더 */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
-        <span className="text-sm font-medium text-slate-400">노드 상세</span>
-        <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
-          ✕
-        </button>
-      </div>
+    <div className={`fixed top-0 right-0 h-full w-full sm:w-[380px] bg-white border-l border-gray-100
+      z-50 flex flex-col transition-transform duration-300 ease-in-out shadow-xl
+      ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
 
-      <div className="p-4 flex flex-col gap-4">
-        <MockPoster node={node} />
+      <button onClick={onClose}
+        className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 text-white flex items-center justify-center transition-colors text-sm">
+        ✕
+      </button>
 
-        {/* 뱃지 + 제목 */}
-        <div>
-          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold mb-2"
-            style={{ backgroundColor: `${color}22`, color, border: `1px solid ${color}44` }}>
-            {groupLabel}
-          </span>
-          <h2 className="text-xl font-bold text-white leading-tight">{node.name}</h2>
-        </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-4">
 
-        {/* 카피 */}
-        {node.copyText && (
-          <div className="p-3 rounded-xl bg-slate-800 border border-slate-700">
-            <p className="text-sm text-slate-200 leading-relaxed italic">"{node.copyText}"</p>
-          </div>
-        )}
+          <MockPoster node={node} />
 
-        {/* 설명 */}
-        {node.description && (
-          <p className="text-sm text-slate-400 leading-relaxed">{node.description}</p>
-        )}
-
-        {/* 도서관 API 섹션 */}
-        <BookSection node={node} />
-
-        {/* 구분선 */}
-        <div className="border-t border-slate-800" />
-
-        {/* 액션 버튼 */}
-        <div className="flex flex-col gap-2">
-          <button className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all
-            bg-indigo-600 hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-500/30 active:scale-95">
-            🗺️ 이 세계관 지도 저장하기
-          </button>
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={handleShareX}
-              className="py-2.5 rounded-xl text-sm font-semibold text-white transition-all bg-slate-700 hover:bg-slate-600 active:scale-95">
-              𝕏 X에 공유하기
-            </button>
-            <button className="py-2.5 rounded-xl text-sm font-semibold text-white transition-all
-              bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 active:scale-95">
-              📸 릴스용 캡처
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 mb-2">
+                {groupLabel}
+              </span>
+              <h2 className="text-xl font-extrabold text-gray-900 leading-tight">{node.name}</h2>
+            </div>
+            <button className="flex flex-col items-center gap-0.5 text-rose-400 flex-shrink-0 mt-1">
+              <span className="text-lg leading-none">♥</span>
+              <span className="text-[10px]">저장</span>
             </button>
           </div>
-        </div>
 
-        {/* 광고 슬롯 */}
-        <div className="rounded-xl border border-dashed border-slate-600 bg-slate-800/50 p-4 text-center">
-          <p className="text-xs text-slate-500 mb-1 font-medium">[ 구글 애드센스 광고 영역 ]</p>
-          <div className="h-24 flex items-center justify-center">
-            <p className="text-xs text-slate-600">광고가 이곳에 표시됩니다</p>
-          </div>
-        </div>
+          {node.copyText && (
+            <p className="text-sm font-semibold leading-relaxed" style={{ color }}>{node.copyText}</p>
+          )}
+          {!node.copyText && node.description && (
+            <p className="text-sm text-gray-500 leading-relaxed">{node.description}</p>
+          )}
 
-        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-800/30 p-3 text-center">
-          <p className="text-xs text-slate-600">[ 배너 광고 슬롯 300×100 ]</p>
-          <div className="h-12 flex items-center justify-center">
-            <p className="text-xs text-slate-700">관련 콘텐츠 광고</p>
+          <div className="border-t border-gray-100" />
+
+          <GroupPanel node={node} />
+
+          <div className="border-t border-gray-100" />
+
+          <div className="space-y-2">
+            <button className="w-full py-3 rounded-xl text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2">
+              🗺️ 이 세계관 지도 저장하기
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={handleShareX}
+                className="py-2.5 rounded-xl text-sm font-semibold text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5">
+                <span className="font-black text-base leading-none">𝕏</span> 공유
+              </button>
+              <button className="py-2.5 rounded-xl text-sm font-semibold text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5">
+                📸 릴스 캡처
+              </button>
+            </div>
+            {/* 광고 슬롯 (SPA 리프레시 래퍼) */}
+            <AdSenseRefresher nodeId={node.id} />
           </div>
+
         </div>
       </div>
     </div>

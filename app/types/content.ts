@@ -55,7 +55,16 @@ export const NODE_COLORS_DARK: Record<NodeGroup, string> = {
   mood:    '#db2777',
   pattern: '#ca8a04',
   index:   '#7c3aed',
-  content: '#2563eb',
+  content: '#059669',
+};
+
+export const NODE_COLORS_BG: Record<NodeGroup, string> = {
+  agent:   '#f0fdf4',
+  keyword: '#fff7ed',
+  mood:    '#fdf4ff',
+  pattern: '#fefce8',
+  index:   '#f5f3ff',
+  content: '#ecfdf5',
 };
 
 export const NODE_SIZES: Record<NodeGroup, number> = {
