@@ -465,7 +465,7 @@ export default function Home() {
           </div>
 
           {/* 오른쪽 사이드바 */}
-          <DetailSidebar node={selectedNode} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <DetailSidebar node={selectedNode} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} activeUniverseTitle={activeUniverseTitle} />
           {sidebarOpen && (
             <div className="fixed inset-0 bg-black/20 z-40 sm:hidden" onClick={() => setSidebarOpen(false)} />
           )}

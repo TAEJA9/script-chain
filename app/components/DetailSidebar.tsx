@@ -60,20 +60,55 @@ const STREAMING_PLATFORMS = [
 const CO_BORROW_PCTS = [78, 63, 51, 44, 32];
 
 // ── AgentPanel ──────────────────────────────────────────────────────
+interface WorkItem {
+  title: string;
+  subtitle?: string;
+  desc?: string;
+  coverUrl?: string | null;
+}
+
 function AgentPanel({ node }: { node: GraphNode }) {
-  const [books, setBooks] = useState<Book[]>([]);
+  const [works, setWorks] = useState<WorkItem[]>([]);
   const [loading, setLoading] = useState(false);
   const color = NODE_COLORS[node.group];
+
+  const isActorOrDirector = node.category === '배우' || node.category === '감독';
 
   useEffect(() => {
     setLoading(true);
     const name = node.name.replace(/\s*(작가|배우|감독)$/, '').trim();
-    fetch(`/api/books?type=author&query=${encodeURIComponent(name)}`)
-      .then(r => r.json())
-      .then(d => setBooks(d.books ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [node.id, node.name]);
+    
+    if (isActorOrDirector) {
+      // 배우나 감독일 경우 영화 API 호출
+      fetch(`/api/naver-movie?query=${encodeURIComponent(name)}&display=5`)
+        .then(r => r.json())
+        .then(d => {
+          const movies = d.movies ?? [];
+          setWorks(movies.map((m: any) => ({
+            title: m.title,
+            subtitle: m.subtitle,
+            desc: `감독: ${m.director.split('|')[0] || '미상'} · 개봉: ${m.pubDate}년`,
+            coverUrl: m.image || null,
+          })));
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    } else {
+      // 작가일 경우 도서 API 호출
+      fetch(`/api/books?type=author&query=${encodeURIComponent(name)}`)
+        .then(r => r.json())
+        .then(d => {
+          const books = d.books ?? [];
+          setWorks(books.map((b: any) => ({
+            title: b.title,
+            desc: `${b.author}${b.publisher ? ` · ${b.publisher}` : ''}`,
+            coverUrl: b.coverUrl || null,
+          })));
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+  }, [node.id, node.name, isActorOrDirector]);
 
   return (
     <div className="space-y-4">
@@ -96,22 +131,23 @@ function AgentPanel({ node }: { node: GraphNode }) {
       <div>
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">대표 참여작</p>
         {loading && <Spinner color="#34d399" label="불러오는 중..." />}
-        {!loading && books.length === 0 && (
+        {!loading && works.length === 0 && (
           <p className="text-xs text-gray-400 py-1">참여작 정보가 없습니다.</p>
         )}
-        {!loading && books.length > 0 && (
+        {!loading && works.length > 0 && (
           <div className="space-y-2">
-            {books.slice(0, 5).map((book, i) => (
-              <div key={book.isbn ?? i}
+            {works.slice(0, 5).map((work, i) => (
+              <div key={i}
                 className="flex gap-3 p-2.5 rounded-xl bg-white border border-gray-100 hover:border-gray-200 transition-colors">
-                {book.coverUrl
-                  ? <img src={book.coverUrl} alt={book.title} className="w-9 h-12 object-cover rounded-lg flex-shrink-0" />
+                {work.coverUrl
+                  ? <img src={work.coverUrl} alt={work.title} className="w-9 h-12 object-cover rounded-lg flex-shrink-0" />
                   : <div className="w-9 h-12 rounded-lg flex-shrink-0 flex items-center justify-center text-base"
-                      style={{ backgroundColor: `${color}15` }}>📖</div>
+                      style={{ backgroundColor: `${color}15` }}>🎬</div>
                 }
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-900 leading-snug line-clamp-2">{book.title}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5 truncate">{book.author}{book.publisher ? ` · ${book.publisher}` : ''}</p>
+                  <p className="text-xs font-semibold text-gray-900 leading-snug line-clamp-2">{work.title}</p>
+                  {work.subtitle && <p className="text-[9px] text-gray-400 truncate leading-none mb-0.5">{work.subtitle}</p>}
+                  <p className="text-[10px] text-gray-400 mt-0.5 truncate">{work.desc}</p>
                 </div>
               </div>
             ))}
@@ -167,8 +203,8 @@ function KeywordPanel({ node }: { node: GraphNode }) {
 }
 
 // ── MoodPanel ───────────────────────────────────────────────────────
-function MoodPanel({ node }: { node: GraphNode }) {
-  const osts = MOCK_OSTS(node.name);
+function MoodPanel({ node, activeUniverseTitle }: { node: GraphNode; activeUniverseTitle?: string }) {
+  const osts = MOCK_OSTS(activeUniverseTitle || node.name);
 
   return (
     <div className="space-y-4">
@@ -183,7 +219,7 @@ function MoodPanel({ node }: { node: GraphNode }) {
       <div className="space-y-1">
         {osts.map((ost, i) => (
           <a key={i}
-            href={`https://www.youtube.com/results?search_query=${encodeURIComponent(ost.title)}`}
+            href={`https://www.youtube.com/results?search_query=${encodeURIComponent((activeUniverseTitle || '') + ' ' + ost.title)}`}
             target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-3 p-3 rounded-xl hover:bg-pink-50 transition-colors group border border-transparent hover:border-pink-100">
             <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0 group-hover:bg-pink-200 transition-colors">
@@ -385,11 +421,11 @@ function ContentPanel({ node }: { node: GraphNode }) {
 }
 
 // ── GroupPanel (switch) ─────────────────────────────────────────────
-function GroupPanel({ node }: { node: GraphNode }) {
+function GroupPanel({ node, activeUniverseTitle }: { node: GraphNode; activeUniverseTitle?: string }) {
   switch (node.group) {
     case 'agent':   return <AgentPanel node={node} />;
     case 'keyword': return <KeywordPanel node={node} />;
-    case 'mood':    return <MoodPanel node={node} />;
+    case 'mood':    return <MoodPanel node={node} activeUniverseTitle={activeUniverseTitle} />;
     case 'pattern': return <PatternPanel node={node} />;
     case 'index':   return <IndexPanel node={node} />;
     case 'content': return <ContentPanel node={node} />;
@@ -443,8 +479,15 @@ function MockPoster({ node }: { node: GraphNode }) {
   );
 }
 
+interface DetailSidebarProps {
+  node: GraphNode | null;
+  isOpen: boolean;
+  onClose: () => void;
+  activeUniverseTitle?: string;
+}
+
 // ── Main ────────────────────────────────────────────────────────────
-export default function DetailSidebar({ node, isOpen, onClose }: DetailSidebarProps) {
+export default function DetailSidebar({ node, isOpen, onClose, activeUniverseTitle }: DetailSidebarProps) {
   if (!node) return null;
 
   const color = NODE_COLORS[node.group] ?? '#10b981';
@@ -492,7 +535,7 @@ export default function DetailSidebar({ node, isOpen, onClose }: DetailSidebarPr
 
           <div className="border-t border-gray-100" />
 
-          <GroupPanel node={node} />
+          <GroupPanel node={node} activeUniverseTitle={activeUniverseTitle} />
 
           <div className="border-t border-gray-100" />
 
