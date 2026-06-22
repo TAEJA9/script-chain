@@ -133,7 +133,30 @@ export default function Home() {
 
   const loadUniverse = useCallback((universe: Universe) => {
     setExpandedNodes(new Set());
-    const data: GraphData = { nodes: [...universe.graph.nodes], links: [...universe.graph.links] };
+    
+    // 메인 콘텐츠 노드(group === 'content')를 찾습니다.
+    const mainNode = universe.graph.nodes.find(n => n.group === 'content');
+    if (!mainNode) {
+      const data: GraphData = { nodes: [...universe.graph.nodes], links: [...universe.graph.links] };
+      graphDataRef.current = data;
+      setActiveGraphData(data);
+      return;
+    }
+
+    // 1차로 메인 노드와 직접 연결된 상위 4개의 노드만 노출하여 콜드 스타트를 해제합니다.
+    // 나머지 노드들은 유저가 각각의 노드를 클릭할 때 동적으로 뻗어나가며 "피어나는" 효과를 구현합니다.
+    const initialLinks = universe.graph.links.filter(
+      l => l.source === mainNode.id || l.target === mainNode.id
+    ).slice(0, 4);
+    
+    const initialNodeIds = new Set<string>([
+      mainNode.id,
+      ...initialLinks.map(l => l.source === mainNode.id ? l.target : l.source)
+    ]);
+    
+    const initialNodes = universe.graph.nodes.filter(n => initialNodeIds.has(n.id));
+
+    const data: GraphData = { nodes: initialNodes, links: initialLinks };
     graphDataRef.current = data;
     setActiveGraphData(data);
     setActiveUniverseTitle(universe.title);
@@ -448,6 +471,13 @@ export default function Home() {
           )}
         </div>
       )}
+
+      {/* ── Footer ── */}
+      <footer className="border-t border-gray-100 bg-white py-4 px-6 flex items-center justify-center gap-6">
+        <span className="text-xs text-gray-400">© 2026 스크립트 체인</span>
+        <a href="/privacy" className="text-xs text-gray-400 hover:text-emerald-600 transition-colors">개인정보처리방침</a>
+        <a href="mailto:ybm.ailab@gmail.com" className="text-xs text-gray-400 hover:text-emerald-600 transition-colors">문의</a>
+      </footer>
     </div>
   );
 }
