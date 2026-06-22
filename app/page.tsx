@@ -121,6 +121,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeGraphData, setActiveGraphData] = useState<GraphData | null>(null);
   const [activeUniverseTitle, setActiveUniverseTitle] = useState('');
+  const [activeUniverseId, setActiveUniverseId] = useState(''); // active universe ID tracking
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
@@ -131,8 +132,32 @@ export default function Home() {
   const graphDataRef = useRef<GraphData | null>(null);
   const graphControlsRef = useRef<GraphControls | null>(null);
 
+  // Edit Mode states
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isAddNodeModalOpen, setIsAddNodeModalOpen] = useState(false);
+  const [linkingSourceNode, setLinkingSourceNode] = useState<GraphNode | null>(null);
+
   const loadUniverse = useCallback((universe: Universe) => {
     setExpandedNodes(new Set());
+    setActiveUniverseId(universe.id);
+    setLinkingSourceNode(null);
+
+    // 로컬 스토리지에 저장된 커스텀 편집본이 있는 경우 로드
+    const savedKey = `custom_graph_${universe.id}`;
+    const savedRaw = typeof window !== 'undefined' ? localStorage.getItem(savedKey) : null;
+    if (savedRaw) {
+      try {
+        const savedData: GraphData = JSON.parse(savedRaw);
+        graphDataRef.current = savedData;
+        setActiveGraphData({ ...savedData });
+        setActiveUniverseTitle(universe.title);
+        setSelectedNode(null);
+        setSidebarOpen(false);
+        return;
+      } catch (e) {
+        console.error("로컬 그래프 데이터 파싱 실패:", e);
+      }
+    }
     
     // 메인 콘텐츠 노드(group === 'content')를 찾습니다.
     const mainNode = universe.graph.nodes.find(n => n.group === 'content');
@@ -163,6 +188,63 @@ export default function Home() {
     setSelectedNode(null);
     setSidebarOpen(false);
   }, []);
+
+  // 관계도 편집 헬퍼 기능들
+  const handleAddCustomNode = (name: string, group: any, category: string, description: string) => {
+    if (!graphDataRef.current) return;
+    const newId = `custom-node-${Date.now()}`;
+    const newNode: GraphNode = {
+      id: newId,
+      name,
+      group,
+      category,
+      description,
+      val: 10,
+    };
+    const updated = {
+      nodes: [...graphDataRef.current.nodes, newNode],
+      links: [...graphDataRef.current.links]
+    };
+    graphDataRef.current = updated;
+    setActiveGraphData({ ...updated });
+    if (activeUniverseId) {
+      localStorage.setItem(`custom_graph_${activeUniverseId}`, JSON.stringify(updated));
+    }
+    setIsAddNodeModalOpen(false);
+  };
+
+  const handleStartLinking = (node: GraphNode) => {
+    setLinkingSourceNode(node);
+    setSidebarOpen(false);
+  };
+
+  const handleDeleteNode = (nodeId: string) => {
+    if (!graphDataRef.current) return;
+    const updated = {
+      nodes: graphDataRef.current.nodes.filter(n => n.id !== nodeId),
+      links: graphDataRef.current.links.filter(l => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        return sId !== nodeId && tId !== nodeId;
+      })
+    };
+    graphDataRef.current = updated;
+    setActiveGraphData({ ...updated });
+    if (activeUniverseId) {
+      localStorage.setItem(`custom_graph_${activeUniverseId}`, JSON.stringify(updated));
+    }
+    setSelectedNode(null);
+    setSidebarOpen(false);
+  };
+
+  const handleResetEdits = () => {
+    if (!activeUniverseId) return;
+    if (confirm("이 세계관의 모든 커스텀 편집 사항을 초기화하고 기본 지도로 복원하시겠습니까?")) {
+      localStorage.removeItem(`custom_graph_${activeUniverseId}`);
+      const universe = universes.find(u => u.id === activeUniverseId);
+      if (universe) loadUniverse(universe);
+    }
+  };
 
   const loadBookGraph = useCallback((query: string, books: NaverBook[]) => {
     setExpandedNodes(new Set());
@@ -223,6 +305,30 @@ export default function Home() {
   }, [searchQuery, loadUniverse, loadBookGraph, loadMovieGraph]);
 
   const handleNodeClick = useCallback((node: GraphNode) => {
+    // 연결 모드 활성화 시 링크 생성 처리
+    if (linkingSourceNode) {
+      if (linkingSourceNode.id === node.id) {
+        alert("자기 자신과는 연결할 수 없습니다.");
+        setLinkingSourceNode(null);
+        return;
+      }
+      const label = prompt(`"${linkingSourceNode.name}" 노드에서 "${node.name}" 노드로의 연결 관계명을 입력하세요 (예: 친구, 출연, 동료, 원작)`);
+      if (label !== null) {
+        const newLink = { source: linkingSourceNode.id, target: node.id, label: label || undefined };
+        const updated = {
+          nodes: [...graphDataRef.current!.nodes],
+          links: [...graphDataRef.current!.links, newLink]
+        };
+        graphDataRef.current = updated;
+        setActiveGraphData({ ...updated });
+        if (activeUniverseId) {
+          localStorage.setItem(`custom_graph_${activeUniverseId}`, JSON.stringify(updated));
+        }
+      }
+      setLinkingSourceNode(null);
+      return;
+    }
+
     setSelectedNode(node);
     setSidebarOpen(true);
 
@@ -255,7 +361,7 @@ export default function Home() {
       graphDataRef.current = updated;
       setActiveGraphData({ ...updated });
     }
-  }, [expandedNodes]);
+  }, [expandedNodes, linkingSourceNode, activeUniverseId]);
 
   const resetHome = () => {
     setActiveGraphData(null);
@@ -401,6 +507,30 @@ export default function Home() {
               </label>
             </div>
 
+            <div className="mb-5 border-t border-gray-100 pt-4">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">🛠️ 관계도 편집</p>
+              <button type="button" onClick={() => setIsEditMode(prev => !prev)}
+                className={`w-full py-2 px-3 text-xs font-bold rounded-lg border transition-colors flex items-center justify-center gap-1.5 mb-2
+                  ${isEditMode 
+                    ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
+                    : 'text-gray-700 border-gray-200 hover:bg-gray-50'
+                  }`}>
+                {isEditMode ? '✏️ 편집 완료' : '✏️ 편집 모드 켜기'}
+              </button>
+              {isEditMode && (
+                <div className="flex flex-col gap-1.5">
+                  <button type="button" onClick={() => setIsAddNodeModalOpen(true)}
+                    className="w-full py-2 px-3 text-xs font-bold text-emerald-600 border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 rounded-lg transition-colors flex items-center justify-center gap-1">
+                    ➕ 새 노드 추가
+                  </button>
+                  <button type="button" onClick={handleResetEdits}
+                    className="w-full py-2 px-3 text-xs font-bold text-rose-600 border border-rose-200 bg-rose-50/50 hover:bg-rose-50 rounded-lg transition-colors flex items-center justify-center gap-1">
+                    ↺ 편집 초기화
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-col gap-2 mb-5">
               <button onClick={() => graphControlsRef.current?.reheat()}
                 className="flex items-center gap-2 px-3 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
@@ -433,6 +563,13 @@ export default function Home() {
           {/* 중앙 그래프 */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
             <div className="flex-1 relative overflow-hidden">
+              {/* 연결 모드 플로팅 배너 */}
+              {linkingSourceNode && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 bg-amber-500 text-white font-bold text-xs py-2 px-4 rounded-full shadow-lg flex items-center gap-2">
+                  <span>🔗 <strong>{linkingSourceNode.name}</strong> 노드와 연결할 대상을 지도에서 클릭해 주세요.</span>
+                  <button type="button" onClick={() => setLinkingSourceNode(null)} className="ml-1 bg-white/20 hover:bg-white/30 rounded-full w-4 h-4 flex items-center justify-center text-[9px]">✕</button>
+                </div>
+              )}
               <SemanticGraph
                 graphData={activeGraphData}
                 onNodeClick={handleNodeClick}
@@ -465,7 +602,15 @@ export default function Home() {
           </div>
 
           {/* 오른쪽 사이드바 */}
-          <DetailSidebar node={selectedNode} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} activeUniverseTitle={activeUniverseTitle} />
+          <DetailSidebar 
+            node={selectedNode} 
+            isOpen={sidebarOpen} 
+            onClose={() => setSidebarOpen(false)} 
+            activeUniverseTitle={activeUniverseTitle} 
+            isEditMode={isEditMode}
+            onStartLinking={handleStartLinking}
+            onDeleteNode={handleDeleteNode}
+          />
           {sidebarOpen && (
             <div className="fixed inset-0 bg-black/20 z-40 sm:hidden" onClick={() => setSidebarOpen(false)} />
           )}
@@ -478,6 +623,78 @@ export default function Home() {
         <a href="/privacy" className="text-xs text-gray-400 hover:text-emerald-600 transition-colors">개인정보처리방침</a>
         <a href="mailto:ybm.ailab@gmail.com" className="text-xs text-gray-400 hover:text-emerald-600 transition-colors">문의</a>
       </footer>
+    </div>
+  );
+}
+
+// ── 새 노드 추가 모달 컴포넌트 ───────────────────────────────────────
+function AddNodeModal({ onClose, onAdd }: { onClose: () => void; onAdd: (name: string, group: string, category: string, description: string) => void }) {
+  const [name, setName] = useState('');
+  const [group, setGroup] = useState('agent');
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      alert('이름을 입력해 주세요.');
+      return;
+    }
+    onAdd(name.trim(), group, category.trim(), description.trim());
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-emerald-50/30">
+          <h3 className="font-extrabold text-gray-900 text-lg">➕ 새 노드 추가</h3>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">노드 이름 *</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required
+              placeholder="예: 차승원, 해피엔딩, 우정"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-emerald-500 text-sm" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">노드 타입 *</label>
+              <select value={group} onChange={(e) => setGroup(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-emerald-500 text-sm bg-white">
+                <option value="agent">인물 (👤)</option>
+                <option value="keyword">키워드 (🏷)</option>
+                <option value="mood">감성/무드 (♥)</option>
+                <option value="pattern">소재/배경 (★)</option>
+                <option value="index">역사적 배경 (🏛)</option>
+                <option value="content">콘텐츠 (📖)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">세부 구분</label>
+              <input type="text" value={category} onChange={(e) => setCategory(e.target.value)}
+                placeholder="예: 배우, 감독, 해피엔딩"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-emerald-500 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">설명</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
+              placeholder="노드에 대한 짧은 설명을 기입해 주세요."
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-emerald-500 text-sm resize-none" />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 text-sm transition-colors">
+              취소
+            </button>
+            <button type="submit"
+              className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition-colors">
+              추가하기
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

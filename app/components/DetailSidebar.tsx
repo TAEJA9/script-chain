@@ -484,10 +484,16 @@ interface DetailSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   activeUniverseTitle?: string;
+  isEditMode?: boolean;
+  onStartLinking?: (node: GraphNode) => void;
+  onDeleteNode?: (nodeId: string) => void;
 }
 
 // ── Main ────────────────────────────────────────────────────────────
-export default function DetailSidebar({ node, isOpen, onClose, activeUniverseTitle }: DetailSidebarProps) {
+export default function DetailSidebar({
+  node, isOpen, onClose, activeUniverseTitle,
+  isEditMode = false, onStartLinking, onDeleteNode
+}: DetailSidebarProps) {
   if (!node) return null;
 
   const color = NODE_COLORS[node.group] ?? '#10b981';
@@ -540,6 +546,19 @@ export default function DetailSidebar({ node, isOpen, onClose, activeUniverseTit
           <div className="border-t border-gray-100" />
 
           <div className="space-y-2">
+            {isEditMode && (
+              <div className="p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex flex-col gap-2 mb-2">
+                <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">✏️ 관계도 편집</p>
+                <button onClick={() => onStartLinking?.(node)}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5">
+                  🔗 이 노드를 다른 노드와 연결하기
+                </button>
+                <button onClick={() => onDeleteNode?.(node.id)}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 transition-colors flex items-center justify-center gap-1.5">
+                  🗑️ 이 노드 삭제하기
+                </button>
+              </div>
+            )}
             <button className="w-full py-3 rounded-xl text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2">
               🗺️ 이 세계관 지도 저장하기
             </button>
