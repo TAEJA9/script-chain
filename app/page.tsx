@@ -125,6 +125,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [showLabels, setShowLabels] = useState(true);
   const [showTooltip, setShowTooltip] = useState(true);
   const graphDataRef = useRef<GraphData | null>(null);
@@ -167,6 +168,8 @@ export default function Home() {
     const q = searchQuery.trim();
     if (!q) return;
 
+    setSearchError('');
+
     const universe = fuzzySearch(q);
     if (universe) { loadUniverse(universe); return; }
 
@@ -186,7 +189,11 @@ export default function Home() {
         loadMovieGraph(q, movies);
       } else if (books.length > 0) {
         loadBookGraph(q, books);
+      } else {
+        setSearchError(`"${q}"에 대한 검색 결과가 없습니다. 다른 키워드로 시도해보세요.`);
       }
+    } catch {
+      setSearchError('검색 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsSearching(false);
     }
@@ -312,6 +319,12 @@ export default function Home() {
               인터랙티브 시맨틱 지식 그래프
             </p>
           </div>
+
+          {searchError && (
+            <div className="w-full max-w-xl mb-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700 text-center">
+              {searchError}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl w-full">
             {[
